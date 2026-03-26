@@ -6,14 +6,17 @@
   <title>Syslog Analytics MVP</title>
   <style>
     :root {
-      --bg: #f4efe6;
-      --panel: rgba(255,255,255,0.78);
-      --ink: #172121;
-      --muted: #5b6b6b;
-      --accent: #0f766e;
-      --accent-soft: #d7f0ea;
-      --line: rgba(23,33,33,0.12);
-      --warn: #b45309;
+      --bg: #09111c;
+      --bg-soft: #0f1a2a;
+      --panel: rgba(15, 26, 42, 0.82);
+      --panel-strong: rgba(8, 17, 29, 0.92);
+      --ink: #ecf4ff;
+      --muted: #93a6bd;
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.16);
+      --line: rgba(147, 166, 189, 0.18);
+      --warn: #f59e0b;
+      --brand: #38bdf8;
     }
     * { box-sizing: border-box; }
     body {
@@ -21,13 +24,51 @@
       font-family: Georgia, "Iowan Old Style", serif;
       color: var(--ink);
       background:
-        radial-gradient(circle at top left, rgba(15,118,110,0.16), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(180,83,9,0.12), transparent 24%),
+        radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(34,197,94,0.15), transparent 26%),
+        linear-gradient(180deg, rgba(8,17,29,0.9), rgba(9,17,28,1)),
         var(--bg);
     }
     main { max-width: 1180px; margin: 0 auto; padding: 24px; }
     .hero {
       display: grid; gap: 12px; margin-bottom: 22px;
+    }
+    .brandline {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      color: #d7f2ff;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .brand-mark {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--brand), #60a5fa);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+    }
+    .release-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.1);
+      color: #dcfce7;
+      border: 1px solid rgba(34, 197, 94, 0.22);
+      font-size: 0.88rem;
     }
     h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.8rem); line-height: 0.95; }
     p { margin: 0; color: var(--muted); }
@@ -43,6 +84,10 @@
       border-radius: 999px;
       font: inherit;
     }
+    select:focus, button:focus, input:focus {
+      outline: 2px solid rgba(56, 189, 248, 0.5);
+      outline-offset: 2px;
+    }
     button { cursor: pointer; }
     .grid {
       display: grid;
@@ -56,7 +101,7 @@
       border-radius: 20px;
       padding: 18px;
       backdrop-filter: blur(12px);
-      box-shadow: 0 8px 30px rgba(23,33,33,0.06);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.26);
     }
     .label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
     .value { margin-top: 8px; font-size: 2rem; font-weight: 700; }
@@ -96,7 +141,7 @@
     }
     input[type="number"] {
       border: 1px solid var(--line);
-      background: white;
+      background: var(--panel-strong);
       color: var(--ink);
       padding: 10px 12px;
       border-radius: 12px;
@@ -120,6 +165,10 @@
 <body>
   <main>
     <section class="hero">
+      <div class="brandline">
+        <div class="brand"><span class="brand-mark"></span>meotar</div>
+        <div class="release-chip" id="releaseChip">Tracking build...</div>
+      </div>
       <h1>Syslog Traffic Sizing Console</h1>
       <p>Raw logs are not stored. This view only tracks ingest volume, source spread and basic syslog dimensions for sizing the next storage tier.</p>
     </section>
@@ -319,6 +368,7 @@
       setText("failRate", `${fmtFloat.format((overview.parse_failure_rate || 0) * 100)}%`);
       setText("health", `Status ${health.status} | UDP ${health.udp_listen} | TCP ${health.tcp_listen} | HTTP ${health.http_listen} | ${health.version}`);
       setText("lastUpdated", `Last updated ${new Date().toLocaleTimeString()}`);
+      setText("releaseChip", health.version.startsWith("v") ? `Release ${health.version}` : `Branch build ${health.version}`);
 
       renderBars(series);
       renderSources(sources);

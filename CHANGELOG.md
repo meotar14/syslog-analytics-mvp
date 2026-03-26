@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.4 - 2026-03-26
+
+- switched the dashboard to a dark visual theme
+- added `meotar` branding and build/release badge in the header
+- clarified branch-build vs release-tag display in the UI
+
 ## v0.1.3 - 2026-03-26
 
 - added automatic dashboard refresh with 5 second polling
