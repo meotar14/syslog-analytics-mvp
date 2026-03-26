@@ -79,6 +79,9 @@
     }
     .muted { color: var(--muted); }
     .warn { color: var(--warn); }
+    .toolbar-note {
+      font-size: 0.92rem;
+    }
     .settings-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -129,13 +132,16 @@
         <option value="43200">Last 30 days</option>
       </select>
       <button id="refresh">Refresh</button>
+      <button id="toggleAutoRefresh">Auto refresh: on</button>
       <span class="muted" id="health">Loading health...</span>
+      <span class="muted toolbar-note" id="lastUpdated">Waiting for first refresh...</span>
     </div>
 
     <section class="grid">
       <article class="card"><div class="label">Messages</div><div class="value" id="messages">-</div></article>
       <article class="card"><div class="label">Bytes</div><div class="value" id="bytes">-</div></article>
       <article class="card"><div class="label">Avg msg/sec</div><div class="value" id="avg">-</div></article>
+      <article class="card"><div class="label">Avg msg/min</div><div class="value" id="avgMinute">-</div></article>
       <article class="card"><div class="label">Peak minute</div><div class="value" id="peak">-</div></article>
       <article class="card"><div class="label">Unique sources</div><div class="value" id="sources">-</div></article>
       <article class="card"><div class="label">Parse failures</div><div class="value warn" id="failRate">-</div></article>
@@ -186,6 +192,8 @@
   <script>
     const fmtInt = new Intl.NumberFormat();
     const fmtFloat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+    let autoRefreshEnabled = true;
+    let refreshTimer = null;
 
     async function getJSON(path) {
       const res = await fetch(path);
@@ -195,6 +203,20 @@
 
     function setText(id, value) {
       document.getElementById(id).textContent = value;
+    }
+
+    function formatRatePerSecond(value) {
+      if (value === 0) return "0";
+      if (value < 0.01) return "<0.01";
+      if (value < 1) return value.toFixed(3);
+      return fmtFloat.format(value);
+    }
+
+    function formatRatePerMinute(value) {
+      if (value === 0) return "0";
+      if (value < 0.1) return "<0.1";
+      if (value < 1) return value.toFixed(2);
+      return fmtFloat.format(value);
     }
 
     function renderBars(points) {
@@ -290,11 +312,13 @@
 
       setText("messages", fmtInt.format(overview.total_messages));
       setText("bytes", fmtInt.format(overview.total_bytes));
-      setText("avg", fmtFloat.format(overview.avg_messages_sec));
+      setText("avg", formatRatePerSecond(overview.avg_messages_sec));
+      setText("avgMinute", formatRatePerMinute((overview.avg_messages_sec || 0) * 60));
       setText("peak", fmtInt.format(overview.peak_messages_sec));
       setText("sources", fmtInt.format(overview.unique_sources));
       setText("failRate", `${fmtFloat.format((overview.parse_failure_rate || 0) * 100)}%`);
       setText("health", `Status ${health.status} | UDP ${health.udp_listen} | TCP ${health.tcp_listen} | HTTP ${health.http_listen} | ${health.version}`);
+      setText("lastUpdated", `Last updated ${new Date().toLocaleTimeString()}`);
 
       renderBars(series);
       renderSources(sources);
@@ -303,8 +327,29 @@
       fillSettings(settings);
     }
 
+    function scheduleAutoRefresh() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+      if (!autoRefreshEnabled) {
+        return;
+      }
+      refreshTimer = setInterval(() => {
+        refresh().catch((err) => {
+          console.error(err);
+          setText("health", err.message);
+        });
+      }, 5000);
+    }
+
     document.getElementById("refresh").addEventListener("click", refresh);
     document.getElementById("range").addEventListener("change", refresh);
+    document.getElementById("toggleAutoRefresh").addEventListener("click", () => {
+      autoRefreshEnabled = !autoRefreshEnabled;
+      setText("toggleAutoRefresh", `Auto refresh: ${autoRefreshEnabled ? "on" : "off"}`);
+      scheduleAutoRefresh();
+    });
     document.getElementById("saveSettings").addEventListener("click", () => {
       saveSettings().catch((err) => {
         console.error(err);
@@ -315,6 +360,7 @@
       console.error(err);
       setText("health", err.message);
     });
+    scheduleAutoRefresh();
   </script>
 </body>
 </html>

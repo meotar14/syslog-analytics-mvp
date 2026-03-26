@@ -78,6 +78,7 @@ echo '<34>Oct 11 22:14:15 firewall01 sshd[123]: Failed password for admin' | nc 
 - SQLite persistence with retention cleanup
 - embedded HTTP dashboard with overview, trend, top sources and dimension breakdowns
 - retention settings editable from the dashboard and persisted in SQLite
+- automatic dashboard refresh via lightweight polling every 5 seconds
 - GitHub Actions build and publish to GHCR
 - container build metadata exposed through `GET /api/health`
 

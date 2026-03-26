@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.3 - 2026-03-26
+
+- added automatic dashboard refresh with 5 second polling
+- improved average rate display for low-traffic environments
+- added average messages per minute card to the dashboard
+
 ## v0.1.2 - 2026-03-26
 
 - added runtime retention settings API backed by SQLite
