@@ -1,0 +1,19 @@
+services:
+  syslog-analytics:
+    build:
+      context: .
+    image: your-dockerhub-or-ghcr-user/syslog-analytics:latest
+    ports:
+      - "5514:5514/udp"
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      DB_PATH: /data/syslog-analytics.db
+      HTTP_LISTEN_ADDR: ":8080"
+      UDP_LISTEN_ADDR: ":5514"
+      FLUSH_INTERVAL_SECONDS: "5"
+      RETENTION_SECONDS_DAYS: "7"
+      RETENTION_MINUTES_DAYS: "30"
+      RETENTION_HOURS_DAYS: "365"
+      RETENTION_DAYS_DAYS: "3650"

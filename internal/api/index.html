@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Syslog Analytics MVP</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: rgba(255,255,255,0.78);
+      --ink: #172121;
+      --muted: #5b6b6b;
+      --accent: #0f766e;
+      --accent-soft: #d7f0ea;
+      --line: rgba(23,33,33,0.12);
+      --warn: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Iowan Old Style", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(15,118,110,0.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(180,83,9,0.12), transparent 24%),
+        var(--bg);
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+    .hero {
+      display: grid; gap: 12px; margin-bottom: 22px;
+    }
+    h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.8rem); line-height: 0.95; }
+    p { margin: 0; color: var(--muted); }
+    .toolbar {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      margin: 18px 0 24px;
+    }
+    select, button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font: inherit;
+    }
+    button { cursor: pointer; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 18px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 30px rgba(23,33,33,0.06);
+    }
+    .label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .value { margin-top: 8px; font-size: 2rem; font-weight: 700; }
+    .wide { grid-column: 1 / -1; }
+    .chart {
+      display: flex; align-items: end; gap: 3px; height: 220px; margin-top: 20px;
+    }
+    .bar {
+      flex: 1; background: linear-gradient(180deg, var(--accent), #153f3f);
+      border-radius: 6px 6px 0 0;
+      min-width: 2px;
+      opacity: 0.92;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    .pill {
+      display: inline-block; padding: 4px 8px; background: var(--accent-soft);
+      border-radius: 999px; margin: 4px 6px 0 0; font-size: 0.92rem;
+    }
+    .muted { color: var(--muted); }
+    .warn { color: var(--warn); }
+    @media (max-width: 720px) {
+      main { padding: 16px; }
+      .value { font-size: 1.6rem; }
+      .chart { height: 160px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Syslog Traffic Sizing Console</h1>
+      <p>Raw logs are not stored. This view only tracks ingest volume, source spread and basic syslog dimensions for sizing the next storage tier.</p>
+    </section>
+
+    <div class="toolbar">
+      <select id="range">
+        <option value="60">Last 1 hour</option>
+        <option value="1440" selected>Last 24 hours</option>
+        <option value="10080">Last 7 days</option>
+        <option value="43200">Last 30 days</option>
+      </select>
+      <button id="refresh">Refresh</button>
+      <span class="muted" id="health">Loading health...</span>
+    </div>
+
+    <section class="grid">
+      <article class="card"><div class="label">Messages</div><div class="value" id="messages">-</div></article>
+      <article class="card"><div class="label">Bytes</div><div class="value" id="bytes">-</div></article>
+      <article class="card"><div class="label">Avg msg/sec</div><div class="value" id="avg">-</div></article>
+      <article class="card"><div class="label">Peak minute</div><div class="value" id="peak">-</div></article>
+      <article class="card"><div class="label">Unique sources</div><div class="value" id="sources">-</div></article>
+      <article class="card"><div class="label">Parse failures</div><div class="value warn" id="failRate">-</div></article>
+      <article class="card wide">
+        <div class="label">Traffic Trend</div>
+        <div class="chart" id="trafficChart"></div>
+      </article>
+      <article class="card">
+        <div class="label">Top Sources</div>
+        <table>
+          <thead><tr><th>Source</th><th>Host</th><th>Msgs</th><th>Bytes</th></tr></thead>
+          <tbody id="sourceTable"></tbody>
+        </table>
+      </article>
+      <article class="card">
+        <div class="label">Severity Mix</div>
+        <div id="severityList" class="muted"></div>
+      </article>
+      <article class="card">
+        <div class="label">Facility Mix</div>
+        <div id="facilityList" class="muted"></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const fmtInt = new Intl.NumberFormat();
+    const fmtFloat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+
+    async function getJSON(path) {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`Request failed: ${path}`);
+      return res.json();
+    }
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+
+    function renderBars(points) {
+      const chart = document.getElementById("trafficChart");
+      chart.innerHTML = "";
+      if (!points.length) {
+        chart.innerHTML = '<span class="muted">No traffic yet.</span>';
+        return;
+      }
+      const max = Math.max(...points.map((p) => p.msg_count), 1);
+      const sliced = points.slice(-96);
+      sliced.forEach((point) => {
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        bar.style.height = `${Math.max((point.msg_count / max) * 100, 2)}%`;
+        bar.title = `${new Date(point.ts * 1000).toLocaleString()} | ${point.msg_count} msgs`;
+        chart.appendChild(bar);
+      });
+    }
+
+    function renderDimension(id, items, label) {
+      const root = document.getElementById(id);
+      root.innerHTML = "";
+      if (!items.length) {
+        root.textContent = `No ${label} data yet.`;
+        return;
+      }
+      items.forEach((item) => {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = `${label} ${item.value}: ${fmtInt.format(item.msg_count)}`;
+        root.appendChild(pill);
+      });
+    }
+
+    function renderSources(rows) {
+      const root = document.getElementById("sourceTable");
+      root.innerHTML = "";
+      if (!rows.length) {
+        root.innerHTML = '<tr><td colspan="4" class="muted">No source data yet.</td></tr>';
+        return;
+      }
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.source_ip}</td><td>${row.hostname}</td><td>${fmtInt.format(row.msg_count)}</td><td>${fmtInt.format(row.byte_count)}</td>`;
+        root.appendChild(tr);
+      });
+    }
+
+    async function refresh() {
+      const range = document.getElementById("range").value;
+      const suffix = `?range_minutes=${encodeURIComponent(range)}`;
+      const [overview, series, sources, severity, facility, health] = await Promise.all([
+        getJSON(`/api/overview${suffix}`),
+        getJSON(`/api/timeseries${suffix}`),
+        getJSON(`/api/sources${suffix}&limit=10`),
+        getJSON(`/api/severity${suffix}`),
+        getJSON(`/api/facility${suffix}`),
+        getJSON(`/api/health`)
+      ]);
+
+      setText("messages", fmtInt.format(overview.total_messages));
+      setText("bytes", fmtInt.format(overview.total_bytes));
+      setText("avg", fmtFloat.format(overview.avg_messages_sec));
+      setText("peak", fmtInt.format(overview.peak_messages_sec));
+      setText("sources", fmtInt.format(overview.unique_sources));
+      setText("failRate", `${fmtFloat.format((overview.parse_failure_rate || 0) * 100)}%`);
+      setText("health", `Status ${health.status} | UDP ${health.udp_listen} | HTTP ${health.http_listen} | Flush ${health.flush_interval}`);
+
+      renderBars(series);
+      renderSources(sources);
+      renderDimension("severityList", severity, "Severity");
+      renderDimension("facilityList", facility, "Facility");
+    }
+
+    document.getElementById("refresh").addEventListener("click", refresh);
+    document.getElementById("range").addEventListener("change", refresh);
+    refresh().catch((err) => {
+      console.error(err);
+      setText("health", err.message);
+    });
+  </script>
+</body>
+</html>
