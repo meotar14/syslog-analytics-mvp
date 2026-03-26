@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.2 - 2026-03-26
+
+- added runtime retention settings API backed by SQLite
+- added retention settings panel to the dashboard
+- cleanup logic now uses persisted runtime settings instead of only startup environment values
+
 ## v0.1.1 - 2026-03-26
 
 - added TCP syslog ingest alongside UDP

@@ -3,12 +3,14 @@ package api
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
 	"syslog-analytics-mvp/internal/buildinfo"
 	"syslog-analytics-mvp/internal/config"
+	"syslog-analytics-mvp/internal/settings"
 	"syslog-analytics-mvp/internal/stats"
 	"syslog-analytics-mvp/internal/storage"
 )
@@ -20,14 +22,16 @@ type server struct {
 	cfg       config.Config
 	store     *storage.SQLiteStore
 	collector *stats.Collector
+	settings  *settings.Runtime
 	mux       *http.ServeMux
 }
 
-func NewServer(cfg config.Config, store *storage.SQLiteStore, collector *stats.Collector) http.Handler {
+func NewServer(cfg config.Config, store *storage.SQLiteStore, collector *stats.Collector, runtimeSettings *settings.Runtime) http.Handler {
 	s := &server{
 		cfg:       cfg,
 		store:     store,
 		collector: collector,
+		settings:  runtimeSettings,
 		mux:       http.NewServeMux(),
 	}
 	s.routes()
@@ -42,6 +46,7 @@ func (s *server) routes() {
 	s.mux.HandleFunc("/api/severity", s.handleSeverity)
 	s.mux.HandleFunc("/api/facility", s.handleFacility)
 	s.mux.HandleFunc("/api/health", s.handleHealth)
+	s.mux.HandleFunc("/api/settings", s.handleSettings)
 }
 
 func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
@@ -106,6 +111,31 @@ func (s *server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, payload, nil)
 }
 
+func (s *server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		writeJSON(w, storage.SettingsRecord{Retention: s.settings.Retention()}, nil)
+	case http.MethodPost:
+		var payload storage.SettingsRecord
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, "invalid settings payload", http.StatusBadRequest)
+			return
+		}
+		if err := validateRetention(payload.Retention); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := s.store.SaveSettings(payload); err != nil {
+			writeJSON(w, nil, err)
+			return
+		}
+		s.settings.UpdateRetention(payload.Retention)
+		writeJSON(w, payload, nil)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func readRangeMinutes(r *http.Request, fallback int64) int64 {
 	raw := r.URL.Query().Get("range_minutes")
 	if raw == "" {
@@ -127,4 +157,11 @@ func writeJSON(w http.ResponseWriter, payload any, err error) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func validateRetention(r config.Retention) error {
+	if r.SecondsDays < 1 || r.MinutesDays < 1 || r.HoursDays < 1 || r.DaysDays < 1 {
+		return fmt.Errorf("all retention values must be at least 1 day")
+	}
+	return nil
 }

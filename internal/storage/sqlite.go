@@ -43,6 +43,10 @@ type DimRow struct {
 	ByteCount int64 `json:"byte_count"`
 }
 
+type SettingsRecord struct {
+	Retention config.Retention `json:"retention"`
+}
+
 func NewSQLiteStore(path string) (*SQLiteStore, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
@@ -129,6 +133,10 @@ func (s *SQLiteStore) init() error {
 			total_msgs INTEGER NOT NULL,
 			total_bytes INTEGER NOT NULL
 		);`,
+		`CREATE TABLE IF NOT EXISTS app_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		);`,
 	}
 
 	for _, stmt := range stmts {
@@ -154,6 +162,59 @@ func (s *SQLiteStore) LoadSnapshot(collector *stats.Collector) error {
 		collector.RestoreSource(reg)
 	}
 	return rows.Err()
+}
+
+func (s *SQLiteStore) LoadSettings(defaults config.Retention) (SettingsRecord, error) {
+	record := SettingsRecord{Retention: defaults}
+	rows, err := s.db.Query(`SELECT key, value FROM app_settings`)
+	if err != nil {
+		return record, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var key string
+		var value int64
+		if err := rows.Scan(&key, &value); err != nil {
+			return record, err
+		}
+		switch key {
+		case "retention_seconds_days":
+			record.Retention.SecondsDays = value
+		case "retention_minutes_days":
+			record.Retention.MinutesDays = value
+		case "retention_hours_days":
+			record.Retention.HoursDays = value
+		case "retention_days_days":
+			record.Retention.DaysDays = value
+		}
+	}
+
+	return record, rows.Err()
+}
+
+func (s *SQLiteStore) SaveSettings(record SettingsRecord) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	values := map[string]int64{
+		"retention_seconds_days": record.Retention.SecondsDays,
+		"retention_minutes_days": record.Retention.MinutesDays,
+		"retention_hours_days":   record.Retention.HoursDays,
+		"retention_days_days":    record.Retention.DaysDays,
+	}
+
+	for key, value := range values {
+		if _, err := tx.Exec(`INSERT INTO app_settings (key, value) VALUES (?, ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (s *SQLiteStore) Flush(snapshot stats.Snapshot) error {

@@ -79,6 +79,34 @@
     }
     .muted { color: var(--muted); }
     .warn { color: var(--warn); }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    input[type="number"] {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font: inherit;
+      width: 100%;
+    }
+    .settings-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
     @media (max-width: 720px) {
       main { padding: 16px; }
       .value { font-size: 1.6rem; }
@@ -129,6 +157,28 @@
       <article class="card">
         <div class="label">Facility Mix</div>
         <div id="facilityList" class="muted"></div>
+      </article>
+      <article class="card wide">
+        <div class="label">Retention Settings</div>
+        <p class="muted">These values are stored in SQLite and applied by the next cleanup cycle without restarting the service.</p>
+        <div class="settings-grid">
+          <label>Second buckets (days)
+            <input id="retentionSeconds" type="number" min="1" step="1">
+          </label>
+          <label>Minute buckets (days)
+            <input id="retentionMinutes" type="number" min="1" step="1">
+          </label>
+          <label>Hour buckets (days)
+            <input id="retentionHours" type="number" min="1" step="1">
+          </label>
+          <label>Day buckets (days)
+            <input id="retentionDays" type="number" min="1" step="1">
+          </label>
+        </div>
+        <div class="settings-actions">
+          <button id="saveSettings">Save Retention</button>
+          <span id="settingsStatus" class="muted">Loading settings...</span>
+        </div>
       </article>
     </section>
   </main>
@@ -194,16 +244,48 @@
       });
     }
 
+    function fillSettings(settings) {
+      document.getElementById("retentionSeconds").value = settings.retention.seconds_days;
+      document.getElementById("retentionMinutes").value = settings.retention.minutes_days;
+      document.getElementById("retentionHours").value = settings.retention.hours_days;
+      document.getElementById("retentionDays").value = settings.retention.days_days;
+      setText("settingsStatus", "Settings loaded.");
+    }
+
+    async function saveSettings() {
+      const payload = {
+        retention: {
+          seconds_days: Number(document.getElementById("retentionSeconds").value),
+          minutes_days: Number(document.getElementById("retentionMinutes").value),
+          hours_days: Number(document.getElementById("retentionHours").value),
+          days_days: Number(document.getElementById("retentionDays").value)
+        }
+      };
+
+      setText("settingsStatus", "Saving...");
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      fillSettings(await res.json());
+      setText("settingsStatus", "Settings saved.");
+    }
+
     async function refresh() {
       const range = document.getElementById("range").value;
       const suffix = `?range_minutes=${encodeURIComponent(range)}`;
-      const [overview, series, sources, severity, facility, health] = await Promise.all([
+      const [overview, series, sources, severity, facility, health, settings] = await Promise.all([
         getJSON(`/api/overview${suffix}`),
         getJSON(`/api/timeseries${suffix}`),
         getJSON(`/api/sources${suffix}&limit=10`),
         getJSON(`/api/severity${suffix}`),
         getJSON(`/api/facility${suffix}`),
-        getJSON(`/api/health`)
+        getJSON(`/api/health`),
+        getJSON(`/api/settings`)
       ]);
 
       setText("messages", fmtInt.format(overview.total_messages));
@@ -218,10 +300,17 @@
       renderSources(sources);
       renderDimension("severityList", severity, "Severity");
       renderDimension("facilityList", facility, "Facility");
+      fillSettings(settings);
     }
 
     document.getElementById("refresh").addEventListener("click", refresh);
     document.getElementById("range").addEventListener("change", refresh);
+    document.getElementById("saveSettings").addEventListener("click", () => {
+      saveSettings().catch((err) => {
+        console.error(err);
+        setText("settingsStatus", err.message);
+      });
+    });
     refresh().catch((err) => {
       console.error(err);
       setText("health", err.message);

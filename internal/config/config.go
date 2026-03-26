@@ -7,10 +7,10 @@ import (
 )
 
 type Retention struct {
-	SecondsDays int64
-	MinutesDays int64
-	HoursDays   int64
-	DaysDays    int64
+	SecondsDays int64 `json:"seconds_days"`
+	MinutesDays int64 `json:"minutes_days"`
+	HoursDays   int64 `json:"hours_days"`
+	DaysDays    int64 `json:"days_days"`
 }
 
 type Config struct {

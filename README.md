@@ -51,6 +51,8 @@ echo '<34>Oct 11 22:14:15 firewall01 sshd[123]: Failed password for admin' | nc 
 - `GET /api/severity?range_minutes=1440`
 - `GET /api/facility?range_minutes=1440`
 - `GET /api/health`
+- `GET /api/settings`
+- `POST /api/settings`
 
 ## Storage model
 
@@ -75,13 +77,13 @@ echo '<34>Oct 11 22:14:15 firewall01 sshd[123]: Failed password for admin' | nc 
 - source, severity and facility rollups per minute
 - SQLite persistence with retention cleanup
 - embedded HTTP dashboard with overview, trend, top sources and dimension breakdowns
+- retention settings editable from the dashboard and persisted in SQLite
 - GitHub Actions build and publish to GHCR
 - container build metadata exposed through `GET /api/health`
 
 ## Still planned
 
 - better RFC3164 and RFC5424 parsing
-- retention settings editable from UI
 - CSV export
 - alerting on bursts, parse failures or source anomalies
 
@@ -101,7 +103,7 @@ Default published image:
 Pin a specific release:
 
 ```bash
-export SYSLOG_ANALYTICS_TAG=v0.1.1
+export SYSLOG_ANALYTICS_TAG=v0.1.2
 docker compose up -d
 ```
 
@@ -116,5 +118,5 @@ docker compose up -d
 See [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Next steps for the project
-- cut `v0.1.0` as the first public MVP tag
+- create a proper GitHub release object for the latest tag
 - stabilize schema and config before adding exports and alerting

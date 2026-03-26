@@ -13,6 +13,7 @@ import (
 	"syslog-analytics-mvp/internal/buildinfo"
 	"syslog-analytics-mvp/internal/config"
 	"syslog-analytics-mvp/internal/ingest"
+	"syslog-analytics-mvp/internal/settings"
 	"syslog-analytics-mvp/internal/stats"
 	"syslog-analytics-mvp/internal/storage"
 )
@@ -31,6 +32,11 @@ func main() {
 	if err := db.LoadSnapshot(collector); err != nil {
 		log.Fatalf("load snapshot: %v", err)
 	}
+	storedSettings, err := db.LoadSettings(cfg.Retention)
+	if err != nil {
+		log.Fatalf("load settings: %v", err)
+	}
+	runtimeSettings := settings.New(storedSettings.Retention)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -52,7 +58,7 @@ func main() {
 				if err := db.Flush(collector.Drain()); err != nil {
 					log.Printf("flush failed: %v", err)
 				}
-				if err := db.ApplyRetention(cfg.Retention); err != nil {
+				if err := db.ApplyRetention(runtimeSettings.Retention()); err != nil {
 					log.Printf("retention failed: %v", err)
 				}
 			}
@@ -68,7 +74,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:              cfg.HTTPListenAddr,
-		Handler:           api.NewServer(cfg, db, collector),
+		Handler:           api.NewServer(cfg, db, collector, runtimeSettings),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
