@@ -2,6 +2,8 @@
 
 Minimal analytic syslog collector for capacity sizing.
 
+Current release line: `v0.1.x`
+
 ## What it does
 
 - accepts syslog over UDP
@@ -60,9 +62,58 @@ echo '<34>Oct 11 22:14:15 firewall01 sshd[123]: Failed password for admin' | nc 
 - `stats_by_facility_minute`
 - `source_registry`
 
-## Next steps
+## Implemented from the initial plan
 
-- add TCP syslog ingest
-- expose retention settings in UI
-- improve parser for RFC3164 and RFC5424
-- add CSV export and alert thresholds
+- single-container MVP for ingest, aggregation, storage and dashboard
+- UDP syslog listener on `5514/udp`
+- lightweight parser extracting hostname, program, severity and facility when present
+- aggregated storage only, no raw log retention
+- second, minute, hour and day traffic buckets
+- source, severity and facility rollups per minute
+- SQLite persistence with retention cleanup
+- embedded HTTP dashboard with overview, trend, top sources and dimension breakdowns
+- GitHub Actions build and publish to GHCR
+- container build metadata exposed through `GET /api/health`
+
+## Still planned
+
+- TCP syslog ingest
+- better RFC3164 and RFC5424 parsing
+- retention settings editable from UI
+- CSV export
+- alerting on bursts, parse failures or source anomalies
+
+## Deployment
+
+Pull and run with the published container image:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Default published image:
+
+- `ghcr.io/meotar14/syslog-analytics:latest`
+
+Pin a specific release:
+
+```bash
+export SYSLOG_ANALYTICS_TAG=v0.1.0
+docker compose up -d
+```
+
+## Versioning
+
+- release tags will use `vMAJOR.MINOR.PATCH`
+- `latest` follows the default branch
+- the app exposes version, commit and build date in `/api/health`
+
+## Changelog
+
+See [`CHANGELOG.md`](./CHANGELOG.md).
+
+## Next steps for the project
+- cut `v0.1.0` as the first public MVP tag
+- add TCP ingest for devices that prefer connection-oriented delivery
+- stabilize schema and config before adding exports and alerting

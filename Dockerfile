@@ -1,9 +1,15 @@
 FROM golang:1.24-alpine AS build
 WORKDIR /src
 
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
+
 COPY . .
 RUN go mod tidy
-RUN CGO_ENABLED=0 go build -o /out/syslog-analytics ./cmd/syslog-analytics
+RUN CGO_ENABLED=0 go build \
+	-ldflags="-X syslog-analytics-mvp/internal/buildinfo.Version=${VERSION} -X syslog-analytics-mvp/internal/buildinfo.Commit=${COMMIT} -X syslog-analytics-mvp/internal/buildinfo.BuildDate=${BUILD_DATE}" \
+	-o /out/syslog-analytics ./cmd/syslog-analytics
 
 FROM alpine:3.21
 RUN adduser -D -u 10001 appuser && mkdir -p /data && chown -R appuser:appuser /data

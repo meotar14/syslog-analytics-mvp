@@ -1,8 +1,9 @@
 services:
   syslog-analytics:
-    build:
-      context: .
-    image: your-dockerhub-or-ghcr-user/syslog-analytics:latest
+    image: ghcr.io/meotar14/syslog-analytics:${SYSLOG_ANALYTICS_TAG:-latest}
+    pull_policy: always
+    container_name: syslog-analytics
+    restart: unless-stopped
     ports:
       - "5514:5514/udp"
       - "8080:8080"

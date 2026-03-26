@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"syslog-analytics-mvp/internal/api"
+	"syslog-analytics-mvp/internal/buildinfo"
 	"syslog-analytics-mvp/internal/config"
 	"syslog-analytics-mvp/internal/ingest"
 	"syslog-analytics-mvp/internal/stats"
@@ -18,6 +19,7 @@ import (
 
 func main() {
 	cfg := config.Load()
+	log.Printf("starting syslog-analytics version=%s commit=%s build_date=%s", buildinfo.Version, buildinfo.Commit, buildinfo.BuildDate)
 
 	db, err := storage.NewSQLiteStore(cfg.DBPath)
 	if err != nil {

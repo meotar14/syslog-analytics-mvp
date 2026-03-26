@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"syslog-analytics-mvp/internal/buildinfo"
 	"syslog-analytics-mvp/internal/config"
 	"syslog-analytics-mvp/internal/stats"
 	"syslog-analytics-mvp/internal/storage"
@@ -97,6 +98,9 @@ func (s *server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		"udp_listen":      s.cfg.UDPListenAddr,
 		"flush_interval":  s.cfg.FlushInterval.String(),
 		"storage_backend": "sqlite",
+		"version":         buildinfo.Version,
+		"commit":          buildinfo.Commit,
+		"build_date":      buildinfo.BuildDate,
 	}
 	writeJSON(w, payload, nil)
 }

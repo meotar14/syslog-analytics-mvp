@@ -43,6 +43,17 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Compute build info
+        id: buildinfo
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=main-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "commit=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -51,3 +62,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.buildinfo.outputs.version }}
+            COMMIT=${{ steps.buildinfo.outputs.commit }}
+            BUILD_DATE=${{ steps.buildinfo.outputs.build_date }}
