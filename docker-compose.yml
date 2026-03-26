@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     ports:
       - "5514:5514/udp"
+      - "5514:5514/tcp"
       - "8080:8080"
     volumes:
       - ./data:/data
@@ -13,6 +14,7 @@ services:
       DB_PATH: /data/syslog-analytics.db
       HTTP_LISTEN_ADDR: ":8080"
       UDP_LISTEN_ADDR: ":5514"
+      TCP_LISTEN_ADDR: ":5514"
       FLUSH_INTERVAL_SECONDS: "5"
       RETENTION_SECONDS_DAYS: "7"
       RETENTION_MINUTES_DAYS: "30"

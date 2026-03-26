@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.1 - 2026-03-26
+
+- added TCP syslog ingest alongside UDP
+- added support for octet-counted and newline-delimited TCP framing
+- improved parser coverage for common RFC3164 and RFC5424 style headers
+- added TCP listener visibility to the health endpoint and dashboard
+- updated deployment compose to expose TCP syslog input
+
 ## v0.1.0 - 2026-03-26
 
 - initial public MVP release

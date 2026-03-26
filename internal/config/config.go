@@ -17,6 +17,7 @@ type Config struct {
 	DBPath         string
 	HTTPListenAddr string
 	UDPListenAddr  string
+	TCPListenAddr  string
 	FlushInterval  time.Duration
 	Retention      Retention
 }
@@ -26,6 +27,7 @@ func Load() Config {
 		DBPath:         getEnv("DB_PATH", "/data/syslog-analytics.db"),
 		HTTPListenAddr: getEnv("HTTP_LISTEN_ADDR", ":8080"),
 		UDPListenAddr:  getEnv("UDP_LISTEN_ADDR", ":5514"),
+		TCPListenAddr:  getEnv("TCP_LISTEN_ADDR", ":5514"),
 		FlushInterval:  time.Duration(getEnvInt("FLUSH_INTERVAL_SECONDS", 5)) * time.Second,
 		Retention: Retention{
 			SecondsDays: getEnvInt64("RETENTION_SECONDS_DAYS", 7),

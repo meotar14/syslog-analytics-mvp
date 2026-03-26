@@ -96,6 +96,7 @@ func (s *server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		"started_at":      s.collector.StartedAt().Unix(),
 		"http_listen":     s.cfg.HTTPListenAddr,
 		"udp_listen":      s.cfg.UDPListenAddr,
+		"tcp_listen":      s.cfg.TCPListenAddr,
 		"flush_interval":  s.cfg.FlushInterval.String(),
 		"storage_backend": "sqlite",
 		"version":         buildinfo.Version,

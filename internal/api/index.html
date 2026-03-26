@@ -212,7 +212,7 @@
       setText("peak", fmtInt.format(overview.peak_messages_sec));
       setText("sources", fmtInt.format(overview.unique_sources));
       setText("failRate", `${fmtFloat.format((overview.parse_failure_rate || 0) * 100)}%`);
-      setText("health", `Status ${health.status} | UDP ${health.udp_listen} | HTTP ${health.http_listen} | Flush ${health.flush_interval}`);
+      setText("health", `Status ${health.status} | UDP ${health.udp_listen} | TCP ${health.tcp_listen} | HTTP ${health.http_listen} | ${health.version}`);
 
       renderBars(series);
       renderSources(sources);

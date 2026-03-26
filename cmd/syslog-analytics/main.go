@@ -62,6 +62,9 @@ func main() {
 	if err := ingest.StartUDP(ctx, cfg.UDPListenAddr, collector); err != nil {
 		log.Fatalf("udp listener: %v", err)
 	}
+	if err := ingest.StartTCP(ctx, cfg.TCPListenAddr, collector); err != nil {
+		log.Fatalf("tcp listener: %v", err)
+	}
 
 	server := &http.Server{
 		Addr:              cfg.HTTPListenAddr,

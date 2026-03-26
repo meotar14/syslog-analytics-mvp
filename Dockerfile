@@ -18,10 +18,12 @@ WORKDIR /app
 COPY --from=build /out/syslog-analytics /app/syslog-analytics
 
 EXPOSE 5514/udp
+EXPOSE 5514/tcp
 EXPOSE 8080
 
 ENV DB_PATH=/data/syslog-analytics.db
 ENV HTTP_LISTEN_ADDR=:8080
 ENV UDP_LISTEN_ADDR=:5514
+ENV TCP_LISTEN_ADDR=:5514
 
 CMD ["/app/syslog-analytics"]

@@ -6,7 +6,7 @@ Current release line: `v0.1.x`
 
 ## What it does
 
-- accepts syslog over UDP
+- accepts syslog over UDP and TCP
 - stores only aggregated counters in SQLite
 - tracks per-minute traffic, byte volume, source spread, severity and facility
 - exposes a small dashboard and JSON API
@@ -35,6 +35,7 @@ Open:
 
 - dashboard: `http://localhost:8080`
 - UDP syslog: `localhost:5514/udp`
+- TCP syslog: `localhost:5514/tcp`
 
 Example test message:
 
@@ -66,7 +67,9 @@ echo '<34>Oct 11 22:14:15 firewall01 sshd[123]: Failed password for admin' | nc 
 
 - single-container MVP for ingest, aggregation, storage and dashboard
 - UDP syslog listener on `5514/udp`
+- TCP syslog listener on `5514/tcp`
 - lightweight parser extracting hostname, program, severity and facility when present
+- basic support for RFC3164 and RFC5424 style headers
 - aggregated storage only, no raw log retention
 - second, minute, hour and day traffic buckets
 - source, severity and facility rollups per minute
@@ -77,7 +80,6 @@ echo '<34>Oct 11 22:14:15 firewall01 sshd[123]: Failed password for admin' | nc 
 
 ## Still planned
 
-- TCP syslog ingest
 - better RFC3164 and RFC5424 parsing
 - retention settings editable from UI
 - CSV export
@@ -99,7 +101,7 @@ Default published image:
 Pin a specific release:
 
 ```bash
-export SYSLOG_ANALYTICS_TAG=v0.1.0
+export SYSLOG_ANALYTICS_TAG=v0.1.1
 docker compose up -d
 ```
 
@@ -115,5 +117,4 @@ See [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Next steps for the project
 - cut `v0.1.0` as the first public MVP tag
-- add TCP ingest for devices that prefer connection-oriented delivery
 - stabilize schema and config before adding exports and alerting
