@@ -1,0 +1,49 @@
+services:
+  syslog-analytics:
+    image: ghcr.io/meotar14/syslog-analytics:v0.1.4
+    pull_policy: always
+    container_name: syslog-analytics
+    restart: unless-stopped
+    ports:
+      - "5514:5514/udp"
+      - "5514:5514/tcp"
+      - "8015:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      DB_PATH: /data/syslog-analytics.db
+      HTTP_LISTEN_ADDR: ":8080"
+      UDP_LISTEN_ADDR: ":5514"
+      TCP_LISTEN_ADDR: ":5514"
+      ARCHIVE_HOT_POSTGRES_DSN: "postgres://syslog:change_me@postgres-hot:5432/syslog_hot?sslmode=disable"
+      ARCHIVE_PRIORITY_POSTGRES_DSN: "postgres://syslog:change_me@postgres-priority:5432/syslog_priority?sslmode=disable"
+      ARCHIVE_HOT_RETENTION_DAYS: "30"
+      ARCHIVE_PRIORITY_RETENTION_DAYS: "365"
+      ARCHIVE_PRIORITY_SEVERITY_MAX: "3"
+      FLUSH_INTERVAL_SECONDS: "5"
+      RETENTION_SECONDS_DAYS: "2"
+      RETENTION_MINUTES_DAYS: "30"
+      RETENTION_HOURS_DAYS: "365"
+      RETENTION_DAYS_DAYS: "3650"
+
+  postgres-hot:
+    image: postgres:17
+    container_name: syslog-archive-postgres-hot
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: syslog_hot
+      POSTGRES_USER: syslog
+      POSTGRES_PASSWORD: change_me
+    volumes:
+      - ./postgres-hot-data:/var/lib/postgresql/data
+
+  postgres-priority:
+    image: postgres:17
+    container_name: syslog-archive-postgres-priority
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: syslog_priority
+      POSTGRES_USER: syslog
+      POSTGRES_PASSWORD: change_me
+    volumes:
+      - ./postgres-priority-data:/var/lib/postgresql/data

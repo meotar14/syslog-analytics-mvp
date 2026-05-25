@@ -18,17 +18,31 @@ type Config struct {
 	HTTPListenAddr string
 	UDPListenAddr  string
 	TCPListenAddr  string
+	ArchiveHotPostgresDSN      string
+	ArchivePriorityPostgresDSN string
+	ArchiveHotRetentionDays    int
+	ArchivePriorityRetentionDays int
+	ArchivePrioritySeverityMax int
 	FlushInterval  time.Duration
 	Retention      Retention
 }
 
 func Load() Config {
+	legacyArchiveDSN := getEnv("ARCHIVE_POSTGRES_DSN", "")
+	archiveHotDSN := getEnv("ARCHIVE_HOT_POSTGRES_DSN", legacyArchiveDSN)
+	archivePriorityDSN := getEnv("ARCHIVE_PRIORITY_POSTGRES_DSN", archiveHotDSN)
+
 	return Config{
-		DBPath:         getEnv("DB_PATH", "/data/syslog-analytics.db"),
-		HTTPListenAddr: getEnv("HTTP_LISTEN_ADDR", ":8080"),
-		UDPListenAddr:  getEnv("UDP_LISTEN_ADDR", ":5514"),
-		TCPListenAddr:  getEnv("TCP_LISTEN_ADDR", ":5514"),
-		FlushInterval:  time.Duration(getEnvInt("FLUSH_INTERVAL_SECONDS", 5)) * time.Second,
+		DBPath:                       getEnv("DB_PATH", "/data/syslog-analytics.db"),
+		HTTPListenAddr:               getEnv("HTTP_LISTEN_ADDR", ":8080"),
+		UDPListenAddr:                getEnv("UDP_LISTEN_ADDR", ":5514"),
+		TCPListenAddr:                getEnv("TCP_LISTEN_ADDR", ":5514"),
+		ArchiveHotPostgresDSN:        archiveHotDSN,
+		ArchivePriorityPostgresDSN:   archivePriorityDSN,
+		ArchiveHotRetentionDays:      getEnvInt("ARCHIVE_HOT_RETENTION_DAYS", 30),
+		ArchivePriorityRetentionDays: getEnvInt("ARCHIVE_PRIORITY_RETENTION_DAYS", 365),
+		ArchivePrioritySeverityMax:   getEnvInt("ARCHIVE_PRIORITY_SEVERITY_MAX", 3),
+		FlushInterval:                time.Duration(getEnvInt("FLUSH_INTERVAL_SECONDS", 5)) * time.Second,
 		Retention: Retention{
 			SecondsDays: getEnvInt64("RETENTION_SECONDS_DAYS", 7),
 			MinutesDays: getEnvInt64("RETENTION_MINUTES_DAYS", 30),

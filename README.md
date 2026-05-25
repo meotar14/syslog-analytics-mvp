@@ -4,6 +4,11 @@ Minimal analytic syslog collector for capacity sizing.
 
 Current release line: `v0.1.x`
 
+This repository currently contains:
+
+- the sizing MVP dashboard and collector
+- the proposed PostgreSQL-based archive architecture for the next phase
+
 ## What it does
 
 - accepts syslog over UDP and TCP
@@ -31,6 +36,8 @@ go mod download
 go run ./cmd/syslog-analytics
 ```
 
+Analytics-only mode is the default. Leave `ARCHIVE_HOT_POSTGRES_DSN` empty and the service keeps only aggregated SQLite counters for sizing and dashboard use.
+
 Open:
 
 - dashboard: `http://localhost:8080`
@@ -53,6 +60,7 @@ echo '<34>Oct 11 22:14:15 firewall01 sshd[123]: Failed password for admin' | nc 
 - `GET /api/health`
 - `GET /api/settings`
 - `POST /api/settings`
+- `GET /api/archive/logs?start=2026-05-25T00:00:00Z&end=2026-05-25T01:00:00Z&source_ip=192.0.2.10&severity=3&vendor=fortigate&limit=100`
 
 ## Storage model
 
@@ -119,6 +127,46 @@ docker compose up -d
 
 See [`CHANGELOG.md`](./CHANGELOG.md).
 
+## Archive v2 Design
+
+The recommended raw-log archive design is documented here:
+
+- [`ARCHITECTURE_V2.md`](/Users/liscakl/Projects/syslog-analytics-mvp/docs/ARCHITECTURE_V2.md)
+- [`postgres_v2.sql`](/Users/liscakl/Projects/syslog-analytics-mvp/sql/postgres_v2.sql)
+- [`docker-compose.postgres.yml`](/Users/liscakl/Projects/syslog-analytics-mvp/docker-compose.postgres.yml)
+
+The current implementation direction is:
+
+- SQLite remains the live sizing/dashboard backend
+- PostgreSQL can now be enabled as an archive sink beside it
+- raw events are intended to flow into `logs_hot` and `logs_priority`
+- short-term and long-term archive DSN can now be configured independently
+
+Archive sink configuration:
+
+- `ARCHIVE_HOT_POSTGRES_DSN`
+- `ARCHIVE_PRIORITY_POSTGRES_DSN`
+- `ARCHIVE_HOT_RETENTION_DAYS`
+- `ARCHIVE_PRIORITY_RETENTION_DAYS`
+- `ARCHIVE_PRIORITY_SEVERITY_MAX`
+
+If both DSN point to different PostgreSQL instances, you can place hot and priority storage on different disks.
+
+Retention behavior:
+
+- hot archive retention is controlled by `ARCHIVE_HOT_RETENTION_DAYS`
+- priority archive retention is controlled by `ARCHIVE_PRIORITY_RETENTION_DAYS`
+- high-priority duplication is controlled by `ARCHIVE_PRIORITY_SEVERITY_MAX`
+- archive retention drops daily PostgreSQL partitions instead of deleting large row ranges
+
+Archive query API:
+
+- `GET /api/archive/logs`
+- optional filters: `start`, `end`, `source_ip`, `hostname`, `severity`, `vendor`, `limit`
+- `start` and `end` must be RFC3339 timestamps
+- `limit` defaults to `100` and is capped at `500`
+- when archive storage is disabled, the endpoint returns `503`
+
 ## Next steps for the project
-- create a proper GitHub release object for the latest tag
-- stabilize schema and config before adding exports and alerting
+- harden PostgreSQL archive storage with integration tests
+- add search UI over raw logs with structured filters

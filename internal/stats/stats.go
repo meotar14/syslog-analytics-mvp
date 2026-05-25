@@ -34,6 +34,12 @@ type SourceSummary struct {
 	TotalByte int64  `json:"total_bytes"`
 }
 
+type Event struct {
+	ReceivedAt time.Time
+	SourceIP   string
+	Message    parse.Message
+}
+
 type Snapshot struct {
 	PerSecond         map[int64]Counter
 	PerMinute         map[int64]Counter
@@ -43,6 +49,7 @@ type Snapshot struct {
 	PerSeverityMinute map[DimKey]Counter
 	PerFacilityMinute map[DimKey]Counter
 	SourceRegistry    map[string]SourceSummary
+	Events            []Event
 }
 
 type Collector struct {
@@ -56,6 +63,7 @@ type Collector struct {
 	perSeverity     map[DimKey]Counter
 	perFacility     map[DimKey]Counter
 	sourceRegistry  map[string]SourceSummary
+	events          []Event
 }
 
 func NewCollector() *Collector {
@@ -69,6 +77,7 @@ func NewCollector() *Collector {
 		perSeverity:     map[DimKey]Counter{},
 		perFacility:     map[DimKey]Counter{},
 		sourceRegistry:  map[string]SourceSummary{},
+		events:          []Event{},
 	}
 }
 
@@ -127,6 +136,11 @@ func (c *Collector) Record(sourceIP string, parsed parse.Message) {
 	reg.TotalMsgs++
 	reg.TotalByte += int64(parsed.RawBytes)
 	c.sourceRegistry[sourceIP] = reg
+	c.events = append(c.events, Event{
+		ReceivedAt: now,
+		SourceIP:   sourceIP,
+		Message:    parsed,
+	})
 }
 
 func (c *Collector) Drain() Snapshot {
@@ -142,6 +156,7 @@ func (c *Collector) Drain() Snapshot {
 		PerSeverityMinute: c.perSeverity,
 		PerFacilityMinute: c.perFacility,
 		SourceRegistry:    c.sourceRegistry,
+		Events:            c.events,
 	}
 
 	c.perSecond = map[int64]Counter{}
@@ -152,6 +167,7 @@ func (c *Collector) Drain() Snapshot {
 	c.perSeverity = map[DimKey]Counter{}
 	c.perFacility = map[DimKey]Counter{}
 	c.sourceRegistry = map[string]SourceSummary{}
+	c.events = []Event{}
 
 	return snapshot
 }

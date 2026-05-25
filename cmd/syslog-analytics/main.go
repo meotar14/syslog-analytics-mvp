@@ -28,6 +28,15 @@ func main() {
 	}
 	defer db.Close()
 
+	var archiveStore *storage.PostgresArchiveStore
+	if cfg.ArchiveHotPostgresDSN != "" {
+		archiveStore, err = storage.NewPostgresArchiveStore(cfg.ArchiveHotPostgresDSN, cfg.ArchivePriorityPostgresDSN, cfg.ArchivePrioritySeverityMax)
+		if err != nil {
+			log.Fatalf("open archive postgres: %v", err)
+		}
+		defer archiveStore.Close()
+	}
+
 	collector := stats.NewCollector()
 	if err := db.LoadSnapshot(collector); err != nil {
 		log.Fatalf("load snapshot: %v", err)
@@ -50,16 +59,31 @@ func main() {
 		for {
 			select {
 			case <-ctx.Done():
-				if err := db.Flush(collector.Drain()); err != nil {
+				snapshot := collector.Drain()
+				if err := db.Flush(snapshot); err != nil {
 					log.Printf("final flush failed: %v", err)
+				}
+				if archiveStore != nil {
+					if err := archiveStore.Flush(snapshot); err != nil {
+						log.Printf("final archive flush failed: %v", err)
+					}
 				}
 				return
 			case <-ticker.C:
-				if err := db.Flush(collector.Drain()); err != nil {
+				snapshot := collector.Drain()
+				if err := db.Flush(snapshot); err != nil {
 					log.Printf("flush failed: %v", err)
 				}
 				if err := db.ApplyRetention(runtimeSettings.Retention()); err != nil {
 					log.Printf("retention failed: %v", err)
+				}
+				if archiveStore != nil {
+					if err := archiveStore.Flush(snapshot); err != nil {
+						log.Printf("archive flush failed: %v", err)
+					}
+					if err := archiveStore.ApplyRetention(cfg.ArchiveHotRetentionDays, cfg.ArchivePriorityRetentionDays); err != nil {
+						log.Printf("archive retention failed: %v", err)
+					}
 				}
 			}
 		}
@@ -74,7 +98,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:              cfg.HTTPListenAddr,
-		Handler:           api.NewServer(cfg, db, collector, runtimeSettings),
+		Handler:           api.NewServer(cfg, db, archiveStore, collector, runtimeSettings),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

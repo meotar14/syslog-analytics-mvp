@@ -7,21 +7,47 @@ import (
 )
 
 type Message struct {
-	Hostname string
-	Program  string
-	Severity int
-	Facility int
-	RawBytes int
-	ParsedOK bool
+	Hostname  string
+	Program   string
+	Severity  int
+	Facility  int
+	Vendor    string
+	FortiGate FortiGateFields
+	RawMessage string
+	RawBytes   int
+	ParsedOK   bool
+}
+
+type FortiGateFields struct {
+	Type      string
+	Subtype   string
+	Level     string
+	Action    string
+	VD        string
+	SrcIP     string
+	SrcPort   int
+	DstIP     string
+	DstPort   int
+	SrcIntf   string
+	DstIntf   string
+	PolicyID  int64
+	SessionID int64
+	Proto     int
+	Service   string
+	UserName  string
+	App       string
+	AppCat    string
 }
 
 func Parse(raw string) Message {
 	msg := Message{
-		Hostname: "unknown",
-		Program:  "unknown",
-		Severity: -1,
-		Facility: -1,
-		RawBytes: len(raw),
+		Hostname:   "unknown",
+		Program:    "unknown",
+		Severity:   -1,
+		Facility:   -1,
+		Vendor:     "generic",
+		RawMessage: strings.TrimSpace(raw),
+		RawBytes:   len(raw),
 	}
 
 	trimmed := strings.TrimSpace(raw)
@@ -54,7 +80,150 @@ func Parse(raw string) Message {
 		msg.ParsedOK = priParsed
 	}
 
+	parseFortiGate(trimmed, &msg)
 	return msg
+}
+
+func parseFortiGate(payload string, msg *Message) {
+	values := parseKeyValues(payload)
+	if len(values) == 0 {
+		return
+	}
+	if _, ok := values["devid"]; !ok {
+		if _, ok := values["devname"]; !ok {
+			if _, ok := values["subtype"]; !ok {
+				return
+			}
+		}
+	}
+
+	msg.Vendor = "fortigate"
+	msg.ParsedOK = true
+	if msg.Hostname == "unknown" {
+		if devname := values["devname"]; devname != "" {
+			msg.Hostname = sanitizeHost(devname)
+		}
+	}
+	if msg.Severity < 0 {
+		msg.Severity = fortiGateSeverity(values["level"])
+	}
+	msg.FortiGate = FortiGateFields{
+		Type:      values["type"],
+		Subtype:   values["subtype"],
+		Level:     values["level"],
+		Action:    values["action"],
+		VD:        values["vd"],
+		SrcIP:     values["srcip"],
+		SrcPort:   atoiDefault(values["srcport"], 0),
+		DstIP:     values["dstip"],
+		DstPort:   atoiDefault(values["dstport"], 0),
+		SrcIntf:   values["srcintf"],
+		DstIntf:   values["dstintf"],
+		PolicyID:  atoi64Default(values["policyid"], 0),
+		SessionID: atoi64Default(values["sessionid"], 0),
+		Proto:     atoiDefault(values["proto"], 0),
+		Service:   values["service"],
+		UserName:  firstNonEmpty(values["user"], values["unauthuser"]),
+		App:       values["app"],
+		AppCat:    values["appcat"],
+	}
+}
+
+func parseKeyValues(payload string) map[string]string {
+	values := map[string]string{}
+	for i := 0; i < len(payload); {
+		for i < len(payload) && unicode.IsSpace(rune(payload[i])) {
+			i++
+		}
+		start := i
+		for i < len(payload) && payload[i] != '=' && !unicode.IsSpace(rune(payload[i])) {
+			i++
+		}
+		if i >= len(payload) || payload[i] != '=' || i == start {
+			for i < len(payload) && !unicode.IsSpace(rune(payload[i])) {
+				i++
+			}
+			continue
+		}
+		key := strings.ToLower(payload[start:i])
+		i++
+		valueStart := i
+		var value string
+		if i < len(payload) && payload[i] == '"' {
+			i++
+			valueStart = i
+			for i < len(payload) && payload[i] != '"' {
+				i++
+			}
+			value = payload[valueStart:i]
+			if i < len(payload) && payload[i] == '"' {
+				i++
+			}
+		} else {
+			for i < len(payload) && !unicode.IsSpace(rune(payload[i])) {
+				i++
+			}
+			value = payload[valueStart:i]
+		}
+		if key != "" {
+			values[key] = value
+		}
+	}
+	return values
+}
+
+func fortiGateSeverity(level string) int {
+	switch strings.ToLower(level) {
+	case "emergency":
+		return 0
+	case "alert":
+		return 1
+	case "critical", "crit":
+		return 2
+	case "error", "err":
+		return 3
+	case "warning", "warn":
+		return 4
+	case "notice":
+		return 5
+	case "information", "informational", "info":
+		return 6
+	case "debug":
+		return 7
+	default:
+		return -1
+	}
+}
+
+func atoiDefault(value string, fallback int) int {
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func atoi64Default(value string, fallback int64) int64 {
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func parsePRI(raw string, msg *Message) (string, bool) {
