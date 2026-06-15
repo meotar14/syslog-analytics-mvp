@@ -5,6 +5,7 @@ import (
 	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"syslog-analytics-mvp/internal/config"
@@ -174,9 +175,13 @@ func (s *SQLiteStore) LoadSettings(defaults config.Retention) (SettingsRecord, e
 
 	for rows.Next() {
 		var key string
-		var value int64
-		if err := rows.Scan(&key, &value); err != nil {
+		var rawValue string
+		if err := rows.Scan(&key, &rawValue); err != nil {
 			return record, err
+		}
+		value, err := strconv.ParseInt(rawValue, 10, 64)
+		if err != nil {
+			continue
 		}
 		switch key {
 		case "retention_seconds_days":
