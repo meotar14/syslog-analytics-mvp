@@ -76,6 +76,38 @@
       display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
       margin: 18px 0 24px;
     }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(7, 15, 26, 0.86);
+      color: var(--ink);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      min-height: 42px;
+    }
+    .status-chip[data-status="loading"] { border-color: rgba(56, 189, 248, 0.45); }
+    .status-chip[data-status="success"] { border-color: rgba(34, 197, 94, 0.35); }
+    .status-chip[data-status="error"] { border-color: rgba(239, 68, 68, 0.35); }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #94a3b8;
+      box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35);
+    }
+    .status-chip[data-status="loading"] .status-dot {
+      background: var(--brand);
+      animation: pulse 1.1s infinite ease-in-out;
+    }
+    .status-chip[data-status="success"] .status-dot { background: var(--accent); }
+    .status-chip[data-status="error"] .status-dot { background: #ef4444; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35); }
+      50% { transform: scale(1.18); box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+    }
     select, button {
       border: 1px solid var(--line);
       background: var(--panel);
@@ -102,6 +134,44 @@
       padding: 18px;
       backdrop-filter: blur(12px);
       box-shadow: 0 12px 40px rgba(0,0,0,0.26);
+      position: relative;
+      overflow: hidden;
+    }
+    .card[data-loading="true"] {
+      border-color: rgba(56, 189, 248, 0.36);
+    }
+    .card[data-loading="true"]::before {
+      content: attr(data-loading-label);
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      z-index: 2;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(8, 17, 29, 0.9);
+      color: #d7f2ff;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .card[data-loading="true"]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.09), transparent);
+      animation: shimmer 1.3s linear infinite;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .card[data-loading="true"] > * {
+      position: relative;
+      z-index: 2;
+      opacity: 0.6;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
     }
     .label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
     .value { margin-top: 8px; font-size: 2rem; font-weight: 700; }
@@ -182,38 +252,42 @@
       </select>
       <button id="refresh">Refresh</button>
       <button id="toggleAutoRefresh">Auto refresh: on</button>
+      <span class="status-chip" id="loadingIndicator" data-status="idle">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="loadingStatus">Loading overview...</span>
+      </span>
       <span class="muted" id="health">Loading health...</span>
       <span class="muted toolbar-note" id="lastUpdated">Waiting for first refresh...</span>
     </div>
 
     <section class="grid">
-      <article class="card"><div class="label">Messages</div><div class="value" id="messages">-</div></article>
-      <article class="card"><div class="label">Bytes</div><div class="value" id="bytes">-</div></article>
-      <article class="card"><div class="label">Avg msg/sec</div><div class="value" id="avg">-</div></article>
-      <article class="card"><div class="label">Avg msg/min</div><div class="value" id="avgMinute">-</div></article>
-      <article class="card"><div class="label">Peak minute</div><div class="value" id="peak">-</div></article>
-      <article class="card"><div class="label">Unique sources</div><div class="value" id="sources">-</div></article>
-      <article class="card"><div class="label">Parse failures</div><div class="value warn" id="failRate">-</div></article>
-      <article class="card wide">
+      <article class="card" data-loading-group="overview" data-loading-label="Loading overview…"><div class="label">Messages</div><div class="value" id="messages">-</div></article>
+      <article class="card" data-loading-group="overview" data-loading-label="Loading overview…"><div class="label">Bytes</div><div class="value" id="bytes">-</div></article>
+      <article class="card" data-loading-group="overview" data-loading-label="Loading overview…"><div class="label">Avg msg/sec</div><div class="value" id="avg">-</div></article>
+      <article class="card" data-loading-group="overview" data-loading-label="Loading overview…"><div class="label">Avg msg/min</div><div class="value" id="avgMinute">-</div></article>
+      <article class="card" data-loading-group="overview" data-loading-label="Loading overview…"><div class="label">Peak minute</div><div class="value" id="peak">-</div></article>
+      <article class="card" data-loading-group="overview" data-loading-label="Loading overview…"><div class="label">Unique sources</div><div class="value" id="sources">-</div></article>
+      <article class="card" data-loading-group="overview" data-loading-label="Loading overview…"><div class="label">Parse failures</div><div class="value warn" id="failRate">-</div></article>
+      <article class="card wide" data-loading-group="trend" data-loading-label="Loading trend…">
         <div class="label">Traffic Trend</div>
         <div class="chart" id="trafficChart"></div>
       </article>
-      <article class="card">
+      <article class="card" data-loading-group="sources" data-loading-label="Loading sources…">
         <div class="label">Top Sources</div>
         <table>
           <thead><tr><th>Source</th><th>Host</th><th>Msgs</th><th>Bytes</th></tr></thead>
           <tbody id="sourceTable"></tbody>
         </table>
       </article>
-      <article class="card">
+      <article class="card" data-loading-group="severity" data-loading-label="Loading severity…">
         <div class="label">Severity Mix</div>
         <div id="severityList" class="muted"></div>
       </article>
-      <article class="card">
+      <article class="card" data-loading-group="facility" data-loading-label="Loading facility…">
         <div class="label">Facility Mix</div>
         <div id="facilityList" class="muted"></div>
       </article>
-      <article class="card wide">
+      <article class="card wide" data-loading-group="settings" data-loading-label="Loading settings…">
         <div class="label">Retention Settings</div>
         <p class="muted">These values are stored in SQLite and applied by the next cleanup cycle without restarting the service.</p>
         <div class="settings-grid">
@@ -243,6 +317,7 @@
     const fmtFloat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
     let autoRefreshEnabled = true;
     let refreshTimer = null;
+    let loadingDepth = 0;
 
     async function getJSON(path) {
       const res = await fetch(path);
@@ -252,6 +327,62 @@
 
     function setText(id, value) {
       document.getElementById(id).textContent = value;
+    }
+
+    function setStatus(message, type = "idle") {
+      const indicator = document.getElementById("loadingIndicator");
+      indicator.dataset.status = type;
+      setText("loadingStatus", message);
+    }
+
+    function setLoading(label = "Loading...") {
+      loadingDepth += 1;
+      setStatus(label, "loading");
+    }
+
+    function clearLoading(message = "Updated", type = "success") {
+      if (loadingDepth > 0) {
+        loadingDepth -= 1;
+      }
+      if (loadingDepth === 0) {
+        setStatus(message, type);
+      }
+    }
+
+    function failLoading(message) {
+      loadingDepth = 0;
+      setStatus(message, "error");
+    }
+
+    function setSectionLoading(group, loading, label) {
+      document.querySelectorAll(`[data-loading-group="${group}"]`).forEach((node) => {
+        node.dataset.loading = loading ? "true" : "false";
+        if (label) {
+          node.dataset.loadingLabel = label;
+        }
+        node.setAttribute("aria-busy", loading ? "true" : "false");
+      });
+    }
+
+    async function withLoading(label, action, doneLabel = "Done") {
+      setLoading(label);
+      try {
+        const result = await action();
+        clearLoading(doneLabel, "success");
+        return result;
+      } catch (err) {
+        failLoading(err.message || label);
+        throw err;
+      }
+    }
+
+    async function loadSection(group, label, action) {
+      setSectionLoading(group, true, label);
+      try {
+        return await action();
+      } finally {
+        setSectionLoading(group, false, label);
+      }
     }
 
     function formatRatePerSecond(value) {
@@ -324,57 +455,63 @@
     }
 
     async function saveSettings() {
-      const payload = {
-        retention: {
-          seconds_days: Number(document.getElementById("retentionSeconds").value),
-          minutes_days: Number(document.getElementById("retentionMinutes").value),
-          hours_days: Number(document.getElementById("retentionHours").value),
-          days_days: Number(document.getElementById("retentionDays").value)
-        }
-      };
+      return withLoading("Saving settings...", async () => {
+        return loadSection("settings", "Saving settings…", async () => {
+          const payload = {
+            retention: {
+              seconds_days: Number(document.getElementById("retentionSeconds").value),
+              minutes_days: Number(document.getElementById("retentionMinutes").value),
+              hours_days: Number(document.getElementById("retentionHours").value),
+              days_days: Number(document.getElementById("retentionDays").value)
+            }
+          };
 
-      setText("settingsStatus", "Saving...");
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-      fillSettings(await res.json());
-      setText("settingsStatus", "Settings saved.");
+          setText("settingsStatus", "Saving...");
+          const res = await fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) {
+            throw new Error(await res.text());
+          }
+          fillSettings(await res.json());
+          setText("settingsStatus", "Settings saved.");
+        });
+      }, "Settings saved.");
     }
 
     async function refresh() {
-      const range = document.getElementById("range").value;
-      const suffix = `?range_minutes=${encodeURIComponent(range)}`;
-      const [overview, series, sources, severity, facility, health, settings] = await Promise.all([
-        getJSON(`/api/overview${suffix}`),
-        getJSON(`/api/timeseries${suffix}`),
-        getJSON(`/api/sources${suffix}&limit=10`),
-        getJSON(`/api/severity${suffix}`),
-        getJSON(`/api/facility${suffix}`),
-        getJSON(`/api/health`),
-        getJSON(`/api/settings`)
-      ]);
+      return withLoading("Refreshing overview...", async () => {
+        const range = document.getElementById("range").value;
+        const suffix = `?range_minutes=${encodeURIComponent(range)}`;
+        const [overview, series, sources, severity, facility, health, settings] = await Promise.all([
+          loadSection("overview", "Loading overview…", () => getJSON(`/api/overview${suffix}`)),
+          loadSection("trend", "Loading trend…", () => getJSON(`/api/timeseries${suffix}`)),
+          loadSection("sources", "Loading sources…", () => getJSON(`/api/sources${suffix}&limit=10`)),
+          loadSection("severity", "Loading severity…", () => getJSON(`/api/severity${suffix}`)),
+          loadSection("facility", "Loading facility…", () => getJSON(`/api/facility${suffix}`)),
+          getJSON(`/api/health`),
+          loadSection("settings", "Loading settings…", () => getJSON(`/api/settings`))
+        ]);
 
-      setText("messages", fmtInt.format(overview.total_messages));
-      setText("bytes", fmtInt.format(overview.total_bytes));
-      setText("avg", formatRatePerSecond(overview.avg_messages_sec));
-      setText("avgMinute", formatRatePerMinute((overview.avg_messages_sec || 0) * 60));
-      setText("peak", fmtInt.format(overview.peak_messages_sec));
-      setText("sources", fmtInt.format(overview.unique_sources));
-      setText("failRate", `${fmtFloat.format((overview.parse_failure_rate || 0) * 100)}%`);
-      setText("health", `Status ${health.status} | UDP ${health.udp_listen} | TCP ${health.tcp_listen} | HTTP ${health.http_listen} | ${health.version}`);
-      setText("lastUpdated", `Last updated ${new Date().toLocaleTimeString()}`);
-      setText("releaseChip", health.version.startsWith("v") ? `Release ${health.version}` : `Branch build ${health.version}`);
+        setText("messages", fmtInt.format(overview.total_messages));
+        setText("bytes", fmtInt.format(overview.total_bytes));
+        setText("avg", formatRatePerSecond(overview.avg_messages_sec));
+        setText("avgMinute", formatRatePerMinute((overview.avg_messages_sec || 0) * 60));
+        setText("peak", fmtInt.format(overview.peak_messages_sec));
+        setText("sources", fmtInt.format(overview.unique_sources));
+        setText("failRate", `${fmtFloat.format((overview.parse_failure_rate || 0) * 100)}%`);
+        setText("health", `Status ${health.status} | UDP ${health.udp_listen} | TCP ${health.tcp_listen} | HTTP ${health.http_listen} | ${health.version}`);
+        setText("lastUpdated", `Last updated ${new Date().toLocaleTimeString()}`);
+        setText("releaseChip", health.version.startsWith("v") ? `Release ${health.version}` : `Branch build ${health.version}`);
 
-      renderBars(series);
-      renderSources(sources);
-      renderDimension("severityList", severity, "Severity");
-      renderDimension("facilityList", facility, "Facility");
-      fillSettings(settings);
+        renderBars(series);
+        renderSources(sources);
+        renderDimension("severityList", severity, "Severity");
+        renderDimension("facilityList", facility, "Facility");
+        fillSettings(settings);
+      }, "Updated");
     }
 
     function scheduleAutoRefresh() {
